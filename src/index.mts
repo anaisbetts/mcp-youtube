@@ -11,6 +11,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { spawnPromise } from "spawn-rx";
 import { rimraf } from "rimraf";
+import { parseSync } from "subtitle";
 
 const server = new Server(
   {
@@ -61,6 +62,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         "--skip-download",
         "--sub-format",
         "srt",
+        "--convert-subs",
+        "srt",
         url,
       ],
       { cwd: tempDir, detached: true }
@@ -68,10 +71,29 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     let content = "";
     try {
-      fs.readdirSync(tempDir).forEach((file) => {
-        const fileContent = fs.readFileSync(path.join(tempDir, file), "utf8");
-        content += `${file}\n====================\n${fileContent}`;
-      });
+      fs.readdirSync(tempDir).forEach((fileName) => {
+        // const fileContent = fs.readFileSync(path.join(tempDir, fileName), "utf8");
+        const input = fs.readFileSync(path.join(tempDir, fileName), 'utf8');
+        const nodes = parseSync(input);
+        nodes.forEach((node) => {
+          if (node.type == 'header') {
+            content += node.data + '\n';
+          } else if (node.type == 'cue') {
+            content += node.data.text + '\n';
+          }
+        });
+
+        // remove duplicated lines
+        content = content.split(/\n+/)
+          .map(line => line.trim())
+          .filter(line => line !== '')
+          .filter((line, index, array) => (
+            array.indexOf(line) == index
+          ))
+          .join('\n');
+
+        content = `${fileName}\n====================\n${content}`;
+      })
     } finally {
       rimraf.sync(tempDir);
     }
