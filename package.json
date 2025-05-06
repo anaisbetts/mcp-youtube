@@ -1,6 +1,7 @@
 {
   "name": "@anaisbetts/mcp-youtube",
   "version": "0.6.0",
+  "type": "module",
   "bin": {
     "mcp-youtube": "lib/index.mjs"
   },

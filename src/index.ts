@@ -10,8 +10,18 @@ import {
 import os from "node:os";
 import fs from "node:fs";
 import path from "node:path";
+import process from "node:process";
 import { spawnPromise } from "spawn-rx";
 import { rimraf } from "rimraf";
+
+const args = process.argv.slice(2);
+let extraYtDlpArgs: string[] = [];
+
+const argsIndex = args.indexOf('--args');
+if (argsIndex !== -1 && argsIndex + 1 < args.length) {
+  extraYtDlpArgs = args[argsIndex + 1].split(' ');
+  console.log(`Extra yt-dlp arguments: ${extraYtDlpArgs.join(' ')}`);
+}
 
 const server = new Server(
   {
@@ -36,6 +46,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           type: "object",
           properties: {
             url: { type: "string", description: "URL of the YouTube video" },
+            extraArgs: { 
+              type: "string", 
+              description: "Extra arguments to pass to yt-dlp (optional)",
+              default: "" 
+            },
           },
           required: ["url"],
         },
@@ -50,21 +65,38 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 
   try {
-    const { url } = request.params.arguments as { url: string };
+    const { url, extraArgs } = request.params.arguments as { 
+      url: string;
+      extraArgs?: string;
+    };
 
     const tempDir = fs.mkdtempSync(`${os.tmpdir()}${path.sep}youtube-`);
+    
+    // prepare yt-dlp default arguments
+    const ytDlpArgs = [
+      "--write-sub",
+      "--write-auto-sub",
+      "--sub-lang",
+      "en",
+      "--skip-download",
+      "--sub-format",
+      "vtt",
+    ];
+    
+    // add extra args from cmdline
+    ytDlpArgs.push(...extraYtDlpArgs);
+    
+    // add extra args from API call
+    if (extraArgs) {
+      ytDlpArgs.push(...extraArgs.split(' '));
+    }
+    
+    // add URL
+    ytDlpArgs.push(url);
+    
     await spawnPromise(
       "yt-dlp",
-      [
-        "--write-sub",
-        "--write-auto-sub",
-        "--sub-lang",
-        "en",
-        "--skip-download",
-        "--sub-format",
-        "vtt",
-        url,
-      ],
+      ytDlpArgs,
       { cwd: tempDir, detached: true }
     );
 
