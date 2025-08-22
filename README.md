@@ -1,4 +1,5 @@
 # YouTube MCP Server
+[![Trust Score](https://archestra.ai/mcp-catalog/api/badge/quality/anaisbetts/mcp-youtube)](https://archestra.ai/mcp-catalog/anaisbetts__mcp-youtube)
 
 Uses `yt-dlp` to download subtitles from YouTube and connects it to claude.ai via [Model Context Protocol](https://modelcontextprotocol.io/introduction). Try it by asking Claude, "Summarize the YouTube video <<URL>>". Requires `yt-dlp` to be installed locally e.g. via Homebrew.
 
