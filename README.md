@@ -6,3 +6,8 @@ Uses `yt-dlp` to download subtitles from YouTube and connects it to claude.ai vi
 
 1. Install `yt-dlp` (Homebrew and WinGet both work great here)
 1. Now, install this via [mcp-installer](https://github.com/anaisbetts/mcp-installer), use the name `@anaisbetts/mcp-youtube`
+
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/anaisbetts-mcp-youtube).
+
