@@ -34,3 +34,6 @@ docs
 .idea/
 
 dist/
+
+# yt-dlp/deno write this into the working dir at runtime
+deno.lock
