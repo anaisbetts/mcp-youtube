@@ -69,23 +69,27 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     throw new Error(`Unknown tool: ${request.params.name}`);
   }
 
-  const toolArguments = parseDownloadYoutubeUrlArguments(
-    request.params.arguments
-  );
-  const parsedUrl = parseSupportedUrl(toolArguments.url);
-  const content = await downloadYoutubeSubtitles(
-    parsedUrl,
-    toolArguments.languages
-  );
+  try {
+    const toolArguments = parseDownloadYoutubeUrlArguments(
+      request.params.arguments
+    );
+    const parsedUrl = parseSupportedUrl(toolArguments.url);
+    const content = await downloadYoutubeSubtitles(
+      parsedUrl,
+      toolArguments.languages
+    );
 
-  return {
-    content: [
-      {
-        type: "text",
-        text: content,
-      },
-    ],
-  };
+    return {
+      content: [
+        {
+          type: "text",
+          text: content,
+        },
+      ],
+    };
+  } catch (error) {
+    return textErrorResponse(formatErrorReason(error));
+  }
 });
 
 export async function downloadYoutubeSubtitles(
@@ -459,6 +463,30 @@ function sanitizeFileName(value: string): string {
 
 function isMainModule(): boolean {
   return process.argv[1] === fileURLToPath(import.meta.url);
+}
+
+function textErrorResponse(text: string) {
+  return {
+    content: [
+      {
+        type: "text" as const,
+        text,
+      },
+    ],
+    isError: true,
+  };
+}
+
+function formatErrorReason(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  return "unknown error";
 }
 
 if (isMainModule()) {
