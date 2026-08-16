@@ -69,42 +69,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     throw new Error(`Unknown tool: ${request.params.name}`);
   }
 
-  let toolArguments: DownloadYoutubeUrlArguments;
-  try {
-    toolArguments = parseDownloadYoutubeUrlArguments(request.params.arguments);
-  } catch (error) {
-    return textErrorResponse(
-      `Parameters are formatted incorrectly: ${formatErrorReason(error)}`
-    );
-  }
+  const toolArguments = parseDownloadYoutubeUrlArguments(
+    request.params.arguments
+  );
+  const parsedUrl = parseSupportedUrl(toolArguments.url);
+  const content = await downloadYoutubeSubtitles(
+    parsedUrl,
+    toolArguments.languages
+  );
 
-  let parsedUrl: URL;
-  try {
-    parsedUrl = parseSupportedUrl(toolArguments.url);
-  } catch (error) {
-    return textErrorResponse(
-      `Parameters are formatted incorrectly: ${formatErrorReason(error)}`
-    );
-  }
-
-  try {
-    const content = await downloadYoutubeSubtitles(
-      parsedUrl,
-      toolArguments.languages
-    );
-    return {
-      content: [
-        {
-          type: "text",
-          text: content,
-        },
-      ],
-    };
-  } catch (error) {
-    return textErrorResponse(
-      `Error downloading video: ${formatErrorReason(error)}`
-    );
-  }
+  return {
+    content: [
+      {
+        type: "text",
+        text: content,
+      },
+    ],
+  };
 });
 
 export async function downloadYoutubeSubtitles(
@@ -331,9 +312,7 @@ async function downloadSubtitles(
     try {
       await downloadSubtitlesForLanguage(url, tempDir, language, languages);
     } catch (error) {
-      lastError = new Error(
-        `Unable to download subtitles for ${language}: ${formatErrorReason(error)}`
-      );
+      lastError = error;
     }
 
     if (listVttFiles(tempDir).length > 0) {
@@ -375,13 +354,17 @@ async function downloadSubtitlesForLanguage(
       cwd: tempDir,
       detached: true,
     });
-  } catch {
-    await downloadSubtitlesFromMetadata(
-      url,
-      tempDir,
-      language,
-      acceptedLanguages
-    );
+  } catch (error) {
+    try {
+      await downloadSubtitlesFromMetadata(
+        url,
+        tempDir,
+        language,
+        acceptedLanguages
+      );
+    } catch {
+      throw error;
+    }
   }
 }
 
@@ -478,30 +461,9 @@ function isMainModule(): boolean {
   return process.argv[1] === fileURLToPath(import.meta.url);
 }
 
-function textErrorResponse(text: string) {
-  return {
-    content: [
-      {
-        type: "text" as const,
-        text,
-      },
-    ],
-    isError: true,
-  };
-}
-
-function formatErrorReason(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  if (typeof error === "string") {
-    return error;
-  }
-
-  return "unknown error";
-}
-
 if (isMainModule()) {
-  runServer().catch(console.error);
+  runServer().catch((error) => {
+    console.error(error);
+    throw error;
+  });
 }
