@@ -1,0 +1,4 @@
+{
+  "name": "mcp-youtube",
+  "install": "bash ./.cursor/install.sh"
+}
