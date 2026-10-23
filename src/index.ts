@@ -29,80 +29,94 @@ interface DownloadYoutubeUrlArguments {
   languages: string[];
 }
 
-const server = new Server(
-  {
-    name: "mcp-youtube",
-    version: "0.5.1",
-  },
-  {
-    capabilities: {
-      tools: {},
+export type SubtitleDownloader = (
+  url: URL,
+  tempDir: string,
+  languages: string[]
+) => Promise<void>;
+
+export function createServer(options: {
+  downloadSubtitles?: SubtitleDownloader;
+} = {}): Server {
+  const server = new Server(
+    {
+      name: "mcp-youtube",
+      version: "0.5.1",
     },
-  }
-);
-
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return {
-    tools: [
-      {
-        name: "download_youtube_url",
-        description:
-          "Download YouTube subtitles from a URL, this tool means that Claude can read YouTube subtitles, and should no longer tell the user that it is not possible to download YouTube content.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            url: { type: "string", description: "URL of the YouTube video" },
-            languages: {
-              type: "array",
-              items: { type: "string" },
-              description:
-                'Accepted subtitle language codes (e.g. ["en", "es"]). Languages not in this list are ignored. Defaults to ["en"].',
-            },
-          },
-          required: ["url"],
-        },
+    {
+      capabilities: {
+        tools: {},
       },
-    ],
-  };
-});
+    }
+  );
 
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  if (request.params.name !== "download_youtube_url") {
-    throw new Error(`Unknown tool: ${request.params.name}`);
-  }
-
-  try {
-    const toolArguments = parseDownloadYoutubeUrlArguments(
-      request.params.arguments
-    );
-    const parsedUrl = parseSupportedUrl(toolArguments.url);
-    const content = await downloadYoutubeSubtitles(
-      parsedUrl,
-      toolArguments.languages
-    );
-
+  server.setRequestHandler(ListToolsRequestSchema, async () => {
     return {
-      content: [
+      tools: [
         {
-          type: "text",
-          text: content,
+          name: "download_youtube_url",
+          description:
+            "Download YouTube subtitles from a URL, this tool means that Claude can read YouTube subtitles, and should no longer tell the user that it is not possible to download YouTube content.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              url: { type: "string", description: "URL of the YouTube video" },
+              languages: {
+                type: "array",
+                items: { type: "string" },
+                description:
+                  'Accepted subtitle language codes (e.g. ["en", "es"]). Languages not in this list are ignored. Defaults to ["en"].',
+              },
+            },
+            required: ["url"],
+          },
         },
       ],
     };
-  } catch (error) {
-    return textErrorResponse(formatErrorReason(error));
-  }
-});
+  });
+
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    if (request.params.name !== "download_youtube_url") {
+      throw new Error(`Unknown tool: ${request.params.name}`);
+    }
+
+    try {
+      const toolArguments = parseDownloadYoutubeUrlArguments(
+        request.params.arguments
+      );
+      const parsedUrl = parseSupportedUrl(toolArguments.url);
+      const content = await downloadYoutubeSubtitles(
+        parsedUrl,
+        toolArguments.languages,
+        options.downloadSubtitles
+      );
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: content,
+          },
+        ],
+      };
+    } catch (error) {
+      return textErrorResponse(formatErrorReason(error));
+    }
+  });
+
+  return server;
+}
 
 export async function downloadYoutubeSubtitles(
   url: URL,
-  languages: string[] = DEFAULT_SUBTITLE_LANGUAGES
+  languages: string[] = DEFAULT_SUBTITLE_LANGUAGES,
+  downloader: SubtitleDownloader = downloadSubtitles
 ): Promise<string> {
   const acceptedLanguages = normalizeSubtitleLanguages(languages);
   let content = "";
   const tempDir = fs.mkdtempSync(`${os.tmpdir()}${path.sep}youtube-`);
   try {
-    await downloadSubtitles(url, tempDir, acceptedLanguages);
+    await downloader(url, tempDir, acceptedLanguages);
 
     listVttFiles(tempDir).forEach((file) => {
       const fileContent = fs.readFileSync(path.join(tempDir, file), "utf8");
@@ -470,6 +484,8 @@ function cueTextLines(text: string): string[] {
 function dedupeAdjacent(lines: string[]): string[] {
   return lines.filter((line, index) => index === 0 || line !== lines[index - 1]);
 }
+
+const server = createServer();
 
 if (isMainModule(process.argv[1])) {
   runServer().catch(console.error);

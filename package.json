@@ -13,7 +13,7 @@
   "author": "Ani Betts <anais@anaisbetts.org>",
   "license": "MIT",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^0.6.0",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "rimraf": "^6.0.1",
     "spawn-rx": "^4.0.0",
     "subtitle": "^4.2.2"

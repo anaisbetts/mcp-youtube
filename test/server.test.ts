@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { SUPPORTED_PROTOCOL_VERSIONS } from "@modelcontextprotocol/sdk/types.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { afterEach, describe, expect, it } from "bun:test";
 import { createServer, type SubtitleDownloader } from "../src";
@@ -33,6 +34,12 @@ type TestConnection = {
 describe("MCP server", () => {
   let connection: TestConnection | undefined;
 
+  it("supports protocol revision 2025-11-25", async () => {
+    expect(SUPPORTED_PROTOCOL_VERSIONS).toContain("2025-11-25");
+    connection = await connectTestServer();
+    expect(connection.client.getServerCapabilities()).toEqual({ tools: {} });
+  });
+
   afterEach(async () => {
     await connection?.close();
     connection = undefined;
@@ -60,6 +67,12 @@ describe("MCP server", () => {
           type: "object",
           properties: {
             url: { type: "string", description: "URL of the YouTube video" },
+            languages: {
+              type: "array",
+              items: { type: "string" },
+              description:
+                'Accepted subtitle language codes (e.g. ["en", "es"]). Languages not in this list are ignored. Defaults to ["en"].',
+            },
           },
           required: ["url"],
         },
